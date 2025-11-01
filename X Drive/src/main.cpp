@@ -10,7 +10,7 @@ pros::v5::MotorGroup intakeBottom({3,-5}, pros::MotorGearset::green, pros::Motor
 
 pros::v5::Imu gyro(6);
 
-const int normalSpeed = 90;
+const int normalSpeed = 85;
 const int turboSpeed = 127;
 
 void setDriveBrakes(bool state) {
@@ -67,7 +67,32 @@ void competition_initialize() {}
  * will be stopped. Re-enabling the robot will restart the task, not re-start it
  * from where it left off.
  */
-void autonomous() {}
+void autonomous() {
+	leftBack.move(-127);
+	leftFront.move(0);
+	rightBack.move(0);
+	rightFront.move(-127);
+
+	pros::delay(1000);
+
+	leftBack.move(0);
+	leftFront.move(0);
+	rightBack.move(0);
+	rightFront.move(0);
+
+	leftBack.move(0);
+	leftFront.move(127);
+	rightBack.move(127);
+	rightFront.move(0);
+
+	pros::delay(1000);
+
+	leftBack.move(0);
+	leftFront.move(0);
+	rightBack.move(0);
+	rightFront.move(0);
+
+}
 
 /**
  * Runs the operator control code. This function will be started in its own task
@@ -86,6 +111,7 @@ void opcontrol()
 {
 	bool brakeState = false;
 	bool fieldOriented = false;
+	const double dumbassAdjustment = 0.8;
 	while (true) {
 		if(master.get_digital_new_press(DIGITAL_A)) {
 			brakeState = !brakeState;
@@ -108,9 +134,9 @@ void opcontrol()
 			intakeTop.move((r1 - r2) * (l2 ? turboSpeed : normalSpeed));
 		}
 
-		int rot = master.get_analog(ANALOG_RIGHT_X) * 0.8;
+		int rot = master.get_analog(ANALOG_RIGHT_X) * 0.56;
 		double origX = master.get_analog(ANALOG_LEFT_X);
-		double origY = master.get_analog(ANALOG_LEFT_Y);
+		double origY = -master.get_analog(ANALOG_LEFT_Y);
 
 		if(master.get_digital_new_press(DIGITAL_X)) {
 			fieldOriented = !fieldOriented;
@@ -133,8 +159,13 @@ void opcontrol()
 		leftFront.move(y + x + rot);
 		leftBack.move(y - x + rot);
 
-		rightFront.move(y - x - rot);
+		rightFront.move((y - x - rot) * dumbassAdjustment);
 		rightBack.move(y + x - rot);
+
+		// pros::lcd::print(1, "BL: %f", leftBack.get_position(0));
+		// pros::lcd::print(2, "FL: %f", leftFront.get_position(0));
+		// pros::lcd::print(3, "BR: %f", rightBack.get_position(0));
+		// pros::lcd::print(4, "FR: %f", rightFront.get_position(0));
 
 		pros::delay(20);
 	}
