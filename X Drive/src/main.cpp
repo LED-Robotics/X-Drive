@@ -1,23 +1,23 @@
 #include "main.h"
 
-/**
- * A callback function for LLEMU's center button.
- *
- * When this callback is fired, it will toggle line 2 of the LCD text between
- * "I was pressed!" and nothing.
- */
-void on_center_button()
-{
-	static bool pressed = false;
-	pressed = !pressed;
-	if (pressed)
-	{
-		pros::lcd::set_text(2, "I was pressed!");
-	}
-	else
-	{
-		pros::lcd::clear_line(2);
-	}
+pros::Controller master(pros::E_CONTROLLER_MASTER);
+pros::v5::MotorGroup leftFront({-1, 2}, pros::MotorGearset::green, pros::MotorUnits::degrees);
+pros::v5::MotorGroup leftBack({-11, 12}, pros::MotorGearset::green, pros::MotorUnits::degrees);
+pros::v5::MotorGroup rightFront({9, -10}, pros::MotorGearset::green, pros::MotorUnits::degrees);
+pros::v5::MotorGroup rightBack({19, -20}, pros::MotorGearset::green, pros::MotorUnits::degrees);
+pros::v5::Motor intakeTop(-4, pros::MotorGearset::green, pros::MotorUnits::degrees);
+pros::v5::MotorGroup intakeBottom({3,-5}, pros::MotorGearset::green, pros::MotorUnits::degrees);
+
+pros::v5::Imu gyro(6);
+
+const int normalSpeed = 90;
+const int turboSpeed = 127;
+
+void setDriveBrakes(bool state) {
+	leftFront.set_brake_mode(state ? MOTOR_BRAKE_BRAKE : MOTOR_BRAKE_COAST);
+	leftBack.set_brake_mode(state ? MOTOR_BRAKE_BRAKE : MOTOR_BRAKE_COAST);
+	rightFront.set_brake_mode(state ? MOTOR_BRAKE_BRAKE : MOTOR_BRAKE_COAST);
+	rightBack.set_brake_mode(state ? MOTOR_BRAKE_BRAKE : MOTOR_BRAKE_COAST);
 }
 
 /**
@@ -29,10 +29,14 @@ void on_center_button()
 void initialize()
 {
 	pros::lcd::initialize();
-	pros::lcd::set_text(1, "Hello PROS User!");
-
-	pros::lcd::register_btn1_cb(on_center_button);
+	pros::lcd::set_text(1, "bababooey!");
+	pros::lcd::set_text(2, "bababooey!");
+	pros::lcd::set_text(3, "bababooey!");
+	pros::lcd::set_text(4, "bababooey!");
+	setDriveBrakes(false);
 }
+
+
 
 /**
  * Runs while the robot is in the disabled state of Field Management System or
@@ -80,22 +84,58 @@ void autonomous() {}
  */
 void opcontrol()
 {
-	pros::Controller master(pros::E_CONTROLLER_MASTER);
-	pros::v5::MotorGroup leftFront({-1, 2}, pros::MotorGearset::green, pros::MotorUnits::degrees);
-	pros::v5::MotorGroup leftBack({-11, 12}, pros::MotorGearset::green, pros::MotorUnits::degrees);
-	pros::v5::MotorGroup rightFront({-10, 9}, pros::MotorGearset::green, pros::MotorUnits::degrees);
-	pros::v5::MotorGroup rightBack({-20, 19}, pros::MotorGearset::green, pros::MotorUnits::degrees);
+	bool brakeState = false;
+	bool fieldOriented = false;
+	while (true) {
+		if(master.get_digital_new_press(DIGITAL_A)) {
+			brakeState = !brakeState;
+			setDriveBrakes(brakeState);
+			master.clear_line(0);
+		}
+		master.set_text(0, 0, brakeState ? "Brakes: Enabled" : "Brakes: Disabled");
 
-	while (true)
-	{
-		int rot = master.get_analog(ANALOG_LEFT_Y);
-		int x = -master.get_analog(ANALOG_LEFT_X);
-		int y = master.get_analog(ANALOG_RIGHT_X);
 
-		leftFront.move(y + rot - x);
-		leftBack.move(y + rot + x);
+		bool l1 = master.get_digital(DIGITAL_L1);
+		bool l2 = master.get_digital(DIGITAL_L2);
+		bool r1 = master.get_digital(DIGITAL_R1);
+		bool r2 = master.get_digital(DIGITAL_R2);
 
-		rightFront.move(y - rot - x);
-		rightBack.move(y - rot + x);
+		if(l1) {
+			intakeBottom.move(l1 * (l2 ? turboSpeed : normalSpeed));
+			intakeTop.move(l1 * -(l2 ? turboSpeed : normalSpeed));
+		} else {
+			intakeBottom.move((r1 - r2) * (l2 ? turboSpeed : normalSpeed));
+			intakeTop.move((r1 - r2) * (l2 ? turboSpeed : normalSpeed));
+		}
+
+		int rot = master.get_analog(ANALOG_RIGHT_X) * 0.8;
+		double origX = master.get_analog(ANALOG_LEFT_X);
+		double origY = master.get_analog(ANALOG_LEFT_Y);
+
+		if(master.get_digital_new_press(DIGITAL_X)) {
+			fieldOriented = !fieldOriented;
+			master.clear_line(1);
+		}
+		master.set_text(2, 0, fieldOriented ? "FOC: Enabled" : "FOC: Disabled");
+
+		double heading, fieldX, fieldY;
+		heading = 0.0;
+
+		if(fieldOriented) {
+			heading = gyro.get_heading();
+		}
+		fieldX = cos(heading) * origX - sin(heading) * origY;
+		fieldY = sin(heading) * origX - cos(heading) * origY;
+		
+		int x = (int)fieldX;
+		int y = (int)fieldY;
+
+		leftFront.move(y + x + rot);
+		leftBack.move(y - x + rot);
+
+		rightFront.move(y - x - rot);
+		rightBack.move(y + x - rot);
+
+		pros::delay(20);
 	}
 }
