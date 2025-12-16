@@ -5,12 +5,12 @@ pros::v5::MotorGroup leftFront({-1, 2}, pros::MotorGearset::green, pros::MotorUn
 pros::v5::MotorGroup leftBack({-11, 12}, pros::MotorGearset::green, pros::MotorUnits::degrees);
 pros::v5::MotorGroup rightFront({9, -10}, pros::MotorGearset::green, pros::MotorUnits::degrees);
 pros::v5::MotorGroup rightBack({19, -20}, pros::MotorGearset::green, pros::MotorUnits::degrees);
-pros::v5::Motor intakeTop(-4, pros::MotorGearset::green, pros::MotorUnits::degrees);
+pros::v5::Motor intakeTop(-4, pros::MotorGearset::blue, pros::MotorUnits::degrees);
 pros::v5::MotorGroup intakeBottom({3,-5}, pros::MotorGearset::green, pros::MotorUnits::degrees);
 
 pros::v5::Imu gyro(6);
 
-const int normalSpeed = 85;
+const int normalSpeed = 127;
 const int turboSpeed = 127;
 
 void setDriveBrakes(bool state) {
@@ -111,7 +111,7 @@ void opcontrol()
 {
 	bool brakeState = false;
 	bool fieldOriented = false;
-	const double dumbassAdjustment = 0.8;
+	const double dumbassAdjustment = 2;
 	while (true) {
 		if(master.get_digital_new_press(DIGITAL_A)) {
 			brakeState = !brakeState;
@@ -156,7 +156,7 @@ void opcontrol()
 		int x = (int)fieldX;
 		int y = (int)fieldY;
 
-		leftFront.move(y + x + rot);
+		leftFront.move((y + x + rot) * dumbassAdjustment);
 		leftBack.move(y - x + rot);
 
 		rightFront.move((y - x - rot) * dumbassAdjustment);
